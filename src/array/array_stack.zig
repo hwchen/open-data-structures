@@ -53,10 +53,7 @@ pub fn ArrayStack(comptime T: type) type {
                 self.backing_slice[self.len] = x;
             } else {
                 // shift elements after and including i to the right
-                var k = self.len - 1;
-                while (k >= i) : (k -= 1) {
-                    self.backing_slice[k + 1] = self.backing_slice[k];
-                }
+                mem.copy(T, self.backing_slice[i + 1 ..], self.backing_slice[i..self.len]);
 
                 // add item x at index i
                 self.backing_slice[i] = x;
@@ -75,10 +72,7 @@ pub fn ArrayStack(comptime T: type) type {
             const res = self.backing_slice[i];
 
             // shift elements
-            var k = i;
-            while (k < self.len - 1) : (k += 1) {
-                self.backing_slice[k] = self.backing_slice[k + 1];
-            }
+            mem.copy(T, self.backing_slice[i..], self.backing_slice[i + 1 .. self.len]);
 
             // update self.len
             self.len -= 1;
