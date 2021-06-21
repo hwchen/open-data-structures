@@ -153,9 +153,31 @@ test "array stack example" {
     try expectEqual(stack.backing_slice.len, 8);
 
     _ = stack.set(2, 'i');
-    try std.testing.expectEqual(stack.get(0).?, 'b');
-    try std.testing.expectEqual(stack.get(1).?, 'r');
-    try std.testing.expectEqual(stack.get(2).?, 'i');
-    try std.testing.expectEqual(stack.get(3).?, 'e');
-    try std.testing.expectEqual(stack.get(4), null);
+    try expectEqual(stack.get(0).?, 'b');
+    try expectEqual(stack.get(1).?, 'r');
+    try expectEqual(stack.get(2).?, 'i');
+    try expectEqual(stack.get(3).?, 'e');
+    try expectEqual(stack.get(4), null);
+}
+
+test "array stack return values" {
+    // Makes sure that fns that return a value from the array have proper lifetimes
+    //
+    // In Rust, I would have expected that Clone is necessary since indexing returns
+    // a reference to a slot. But here, it looks like indexing will copy the value on
+    // assignment?
+
+    const TestStruct = struct { value: u64 };
+
+    const alloc = std.testing.allocator;
+    // TestStruct should definitely not be Copy.
+    var stack = ArrayStack(TestStruct).init(alloc);
+    defer stack.deinit();
+
+    try stack.add(0, TestStruct{ .value = 0 });
+    const old_val_0 = stack.set(0, TestStruct{ .value = 1 });
+    try expectEqual(old_val_0, TestStruct{ .value = 0 });
+
+    const old_val_1 = try stack.remove(0);
+    try expectEqual(old_val_1, TestStruct{ .value = 2 });
 }
