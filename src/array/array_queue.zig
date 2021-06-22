@@ -118,6 +118,10 @@ test "array queue basic" {
 
 test "array queue example" {
     // Follows example from ODS book in figure 2.2
+    // For resizing, tests:
+    // - up with wraparound
+    // - down with no wraparound
+
     const alloc = std.testing.allocator;
     var queue = ArrayQueue(u8).init(alloc);
     defer queue.deinit();
@@ -144,7 +148,7 @@ test "array queue example" {
     try expectEqualSlices(u8, queue.backing_slice, "efgbcd");
 
     try queue.add('h'); // resize
-    try expectEqualSlices(u8, queue.backing_slice[0..6], "bcdefg");
+    try expectEqualSlices(u8, queue.backing_slice[0..7], "bcdefgh");
     try expectEqual(queue.head, 0);
     try expectEqual(queue.len, 7);
 
@@ -157,4 +161,51 @@ test "array queue example" {
     _ = try queue.remove();
     _ = try queue.remove();
     try expectEqual(queue.backing_slice.len, 8);
+    try expectEqual(queue.len, 4);
+    try expectEqualSlices(u8, queue.backing_slice[0..4], "efgh");
+}
+
+test "array queue: size up no wraparound" {
+    const alloc = std.testing.allocator;
+    var queue = ArrayQueue(u8).init(alloc);
+    defer queue.deinit();
+
+    try queue.add('a');
+    try queue.add('b');
+    try queue.add('c');
+    try queue.add('d');
+    try queue.add('e');
+    try expectEqual(queue.head, 0);
+    try expectEqual(queue.len, 5);
+    try expectEqual(queue.backing_slice.len, 8);
+}
+
+test "array queue: size down with wraparound" {
+    const alloc = std.testing.allocator;
+    var queue = ArrayQueue(u8).init(alloc);
+    defer queue.deinit();
+
+    try queue.add('a');
+    try queue.add('b');
+    try queue.add('c');
+    try queue.add('d');
+    try queue.add('e');
+    try queue.add('f');
+    try queue.add('g');
+    try queue.add('h');
+    try expectEqual(queue.backing_slice.len, 8);
+    _ = try queue.remove();
+    _ = try queue.remove();
+    _ = try queue.remove();
+    _ = try queue.remove();
+    try queue.add('x');
+
+    // current state should be [x,_,_,_,e,f,g,h]
+
+    _ = try queue.remove();
+    _ = try queue.remove();
+    _ = try queue.remove(); // trigger resize
+    try expectEqual(queue.backing_slice.len, 4);
+    try expectEqual(queue.len, 2);
+    try expectEqualSlices(u8, queue.backing_slice[0..2], "hx");
 }
