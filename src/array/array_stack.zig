@@ -120,6 +120,8 @@ test "array stack basic get set" {
 
     try expectEqual(stack.set(0, 2), 1);
     try expectEqual(stack.get(0), 2);
+
+    _ = try stack.remove(0);
 }
 
 test "array stack example" {
@@ -179,5 +181,5 @@ test "array stack return values" {
     try expectEqual(old_val_0, TestStruct{ .value = 0 });
 
     const old_val_1 = try stack.remove(0);
-    try expectEqual(old_val_1, TestStruct{ .value = 2 });
+    try expectEqual(old_val_1, TestStruct{ .value = 1 });
 }
