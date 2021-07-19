@@ -42,3 +42,9 @@ pub fn resize_queue_backing(comptime T: type, head_ptr: *usize, len: usize, back
         head_ptr.* = 0;
     }
 }
+
+pub fn reserve_queue_backing(comptime T: type, len: usize, additional: usize, backing_slice_ptr: *[]T, allocator: *Allocator) !void {
+    if (additional > backing_slice_ptr.*.len - len) {
+        backing_slice_ptr.* = try allocator.realloc(backing_slice_ptr.*, len + additional);
+    }
+}

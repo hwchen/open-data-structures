@@ -63,9 +63,7 @@ pub fn ArrayQueue(comptime T: type) type {
         }
 
         pub fn reserve(self: *Self, additional: usize) !void {
-            if (additional > self.backing_slice.len - self.len) {
-                self.backing_slice = try self.allocator.realloc(self.backing_slice, self.len + additional);
-            }
+            return common.reserve_queue_backing(T, self.len, additional, &self.backing_slice, self.allocator);
         }
 
         fn resize(self: *Self) !void {
