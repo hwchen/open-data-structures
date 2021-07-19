@@ -5,6 +5,8 @@ const expectEqualSlices = std.testing.expectEqualSlices;
 const mem = std.mem;
 const Allocator = mem.Allocator;
 
+const common = @import("./common.zig");
+
 // Don't worry about alignment yet?
 // Check https://github.com/ziglang/zig/blob/00982f75e92119aac6182ab9876adfb13305d1ed/lib/std/array_list.zig#L52 later
 //
@@ -67,36 +69,7 @@ pub fn ArrayQueue(comptime T: type) type {
         }
 
         fn resize(self: *Self) !void {
-            if (self.backing_slice.len == 0) {
-                self.backing_slice = try self.allocator.alloc(T, 1);
-            } else if (self.len == 0) {
-                self.allocator.free(self.backing_slice);
-                self.backing_slice = &[_]T{};
-            } else {
-                const new_backing = try self.allocator.alloc(T, self.len * 2);
-
-                if (self.head + self.len > self.backing_slice.len) {
-                    // there's a wraparound, both sizing up or down are possible
-
-                    const num_head_elem = self.backing_slice.len - self.head;
-
-                    // copy section from head to end of backing array
-                    mem.copy(T, new_backing, self.backing_slice[self.head..]);
-
-                    // copy section from beginning of backing slice to last element
-                    mem.copy(T, new_backing[num_head_elem..], self.backing_slice[0 .. self.len - num_head_elem]);
-                } else {
-                    // no wraparound, sizing down or sizing up are possible
-
-                    //copy section from head to head + len
-                    mem.copy(T, new_backing, self.backing_slice[self.head .. self.head + self.len]);
-                }
-
-                self.allocator.free(self.backing_slice);
-                self.backing_slice = new_backing;
-
-                self.head = 0;
-            }
+            return common.resize_queue_backing(T, &self.head, self.len, &self.backing_slice, self.allocator);
         }
     };
 }
