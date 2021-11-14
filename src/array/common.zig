@@ -1,8 +1,8 @@
 const std = @import("std");
 const mem = std.mem;
 const Allocator = mem.Allocator;
+const expectEqualSlices = std.testing.expectEqualSlices;
 
-// TODO implement rotate? Can I do that with memcpy?
 pub fn resize_queue_backing(comptime T: type, head_ptr: *usize, len: usize, backing_slice_ptr: *[]T, allocator: *Allocator) !void {
     // fn params are immutable, so for when we want to set head and backing_slice, need to use pointers in the param.
     // When they're not being set, we can just set the value to a const in the fn scope.
@@ -12,11 +12,15 @@ pub fn resize_queue_backing(comptime T: type, head_ptr: *usize, len: usize, back
     const head = head_ptr.*;
 
     if (backing_slice.len == 0) {
+        // Going from 0 items to 1
         backing_slice_ptr.* = try allocator.alloc(T, 1);
     } else if (len == 0) {
+        // deallocate if backing slice is emptied
         allocator.free(backing_slice);
         backing_slice_ptr.* = &[_]T{};
     } else {
+        // Going from at least one item, requires rotating
+
         const new_backing = try allocator.alloc(T, len * 2);
 
         if (head + len > backing_slice.len) {
@@ -47,4 +51,93 @@ pub fn reserve_queue_backing(comptime T: type, len: usize, additional: usize, ba
     if (additional > backing_slice_ptr.*.len - len) {
         backing_slice_ptr.* = try allocator.realloc(backing_slice_ptr.*, len + additional);
     }
+}
+
+// start to end [..), shift left
+pub fn shift_left(comptime T: type, start: usize, end: usize, slice: *[]T) void {
+    if (start == end) {
+        return;
+    } else if (start < end) {
+        // Only one slice to shift if start < end
+        shift_left_contiguous(T, start, end, slice);
+    } else {
+        // Two slices to shift if start > end (wraparound)
+        // Order matters, to make space for the wraparound shift
+        shift_left_contiguous(T, start, slice.len, slice);
+        shift_left_contiguous(T, 0, end, slice);
+    }
+}
+
+// start to end [..), shift left.
+// From start to end must be contiguous (start < end)
+fn shift_left_contiguous(comptime T: type, start: usize, end: usize, slice_ptr: *[]T) void {
+    std.debug.assert(start <= end);
+
+    var slice = slice_ptr.*;
+
+    const temp = slice[start];
+    mem.copy(T, slice[start .. end - 1], slice[start + 1 .. end]);
+    // shift start value one to the left
+    // accounts for when start was slice[0]
+    slice[@mod(start + slice.len - 1, slice.len)] = temp;
+}
+
+// start to end [..), shift right
+pub fn shift_right(comptime T: type, start: usize, end: usize, slice: *[]T) void {
+    if (start == end) {
+        return;
+    } else if (start < end) {
+        // Only one slice to shift if start < end
+        shift_right_contiguous(T, start, end, slice);
+    } else {
+        // Two slices to shift if start > end (wraparound)
+        // Order matters, to make space for the wraparound shift
+        shift_right_contiguous(T, 0, end, slice);
+        shift_right_contiguous(T, start, slice.len, slice);
+    }
+}
+
+// start to end [..), shift left.
+// From start to end must be contiguous (start < end)
+fn shift_right_contiguous(comptime T: type, start: usize, end: usize, slice_ptr: *[]T) void {
+    std.debug.assert(start <= end);
+
+    var slice = slice_ptr.*;
+
+    const temp = slice[end - 1];
+    // Order matters here, since it's copying in place index by index. Test with a right shift moving right side up.
+    mem.copyBackwards(T, slice[start + 1 .. end], slice[start .. end - 1]);
+    // shift end value one to the right
+    // accounts for when end was tail
+    slice[@mod(end, slice.len)] = temp;
+}
+
+test "shift_left_contiguous" {
+    const alloc = std.testing.allocator;
+    var input = std.ArrayList(u8).init(alloc);
+    defer input.deinit();
+    try input.append('0');
+    try input.append('1');
+    try input.append('2');
+    try input.append('3');
+    try input.append('4');
+    try input.append('5');
+
+    shift_left_contiguous(u8, 2, 6, &input.items);
+    try expectEqualSlices(u8, input.items[0..5], "02345");
+}
+
+test "shift_right_contiguous" {
+    const alloc = std.testing.allocator;
+    var input = std.ArrayList(u8).init(alloc);
+    defer input.deinit();
+    try input.append('0');
+    try input.append('1');
+    try input.append('2');
+    try input.append('3');
+    try input.append('4');
+    try input.append('5');
+
+    shift_right_contiguous(u8, 0, 2, &input.items);
+    try expectEqualSlices(u8, input.items[1..6], "01345");
 }
