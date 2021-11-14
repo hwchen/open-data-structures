@@ -163,3 +163,7 @@ test "array dequeue example" {
     try expectEqualSlices(u8, queue.backing_slice[0..9], "bdzyexfgh");
     try expectEqualSlices(u8, queue.backing_slice[11..], "a");
 }
+
+// TODO add more tests for edge cases like wraparound. But not as urgent, since
+// shift is relatively well tested, and basic index insert/remove is already
+// tested with the example.

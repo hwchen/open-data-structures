@@ -112,6 +112,12 @@ fn shift_right_contiguous(comptime T: type, start: usize, end: usize, slice_ptr:
     slice[@mod(end, slice.len)] = temp;
 }
 
+// Testing:
+// - shift left towards center
+// - shift left away from center
+// - shift left away from center wraparound
+//
+// Tested separately from shift_left because it's the underlying basis
 test "shift_left_contiguous" {
     const alloc = std.testing.allocator;
     var input = std.ArrayList(u8).init(alloc);
@@ -120,13 +126,48 @@ test "shift_left_contiguous" {
     try input.append('1');
     try input.append('2');
     try input.append('3');
-    try input.append('4');
-    try input.append('5');
 
-    shift_left_contiguous(u8, 2, 6, &input.items);
-    try expectEqualSlices(u8, input.items[0..5], "02345");
+    // towards center
+    shift_left_contiguous(u8, 2, 4, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "0233");
+
+    // away from center
+    shift_left_contiguous(u8, 1, 3, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "2333");
+
+    // wraparound
+    shift_left_contiguous(u8, 0, 2, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "3332");
 }
 
+// Testing:
+// - start == end
+// - start > end
+// - (start < end is already covered by shift_left_contiguous)
+test "shift_left_non_contiguous" {
+    const alloc = std.testing.allocator;
+    var input = std.ArrayList(u8).init(alloc);
+    defer input.deinit();
+    try input.append('0');
+    try input.append('1');
+    try input.append('2');
+    try input.append('3');
+
+    // no shift
+    shift_left(u8, 0, 0, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "0123");
+
+    // start > end
+    shift_left(u8, 3, 1, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "0130");
+}
+
+// Testing:
+// - shift right towards center
+// - shift right away from center
+// - shift right away from center wraparound
+//
+// Tested separately from shift_right because it's the underlying basis
 test "shift_right_contiguous" {
     const alloc = std.testing.allocator;
     var input = std.ArrayList(u8).init(alloc);
@@ -135,9 +176,40 @@ test "shift_right_contiguous" {
     try input.append('1');
     try input.append('2');
     try input.append('3');
-    try input.append('4');
-    try input.append('5');
 
+    // towards center
     shift_right_contiguous(u8, 0, 2, &input.items);
-    try expectEqualSlices(u8, input.items[1..6], "01345");
+    try expectEqualSlices(u8, input.items[0..4], "0013");
+
+    // away from center
+    shift_right_contiguous(u8, 1, 3, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "0001");
+
+    // wraparound
+    shift_right_contiguous(u8, 2, 4, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "1000");
 }
+
+// Testing:
+// - start == end
+// - start > end
+// - (start < end is already covered by shift_left_contiguous)
+test "shift_right_non_contiguous" {
+    const alloc = std.testing.allocator;
+    var input = std.ArrayList(u8).init(alloc);
+    defer input.deinit();
+    try input.append('0');
+    try input.append('1');
+    try input.append('2');
+    try input.append('3');
+
+    // no shift
+    shift_right(u8, 0, 0, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "0123");
+
+    // start > end
+    shift_right(u8, 3, 1, &input.items);
+    try expectEqualSlices(u8, input.items[0..4], "3023");
+}
+
+// TODO add more tests for resizing (it's kind of tested in tests for ArrayQueue already)
