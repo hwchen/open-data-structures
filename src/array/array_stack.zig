@@ -53,7 +53,8 @@ pub fn ArrayStack(comptime T: type) type {
                 self.backing_slice[self.len] = x;
             } else {
                 // shift elements after and including i to the right
-                mem.copy(T, self.backing_slice[i + 1 ..], self.backing_slice[i..self.len]);
+                // TODO should this be copyBackwards? Test below only shifts one element which might miss the bug.
+                mem.copyBackwards(T, self.backing_slice[i + 1 ..], self.backing_slice[i..self.len]);
 
                 // add item x at index i
                 self.backing_slice[i] = x;
